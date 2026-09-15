@@ -1,0 +1,10 @@
+# Name,   Type, SubType, Offset,  Size, Flags
+# Echo Sentry — comprehensive-plan.md §2.3. ESP32-S3-DevKitC-1-N8R8 has 8MB flash.
+# ota_0/ota_1 + otadata support esp_https_ota (Part 4 of the environment plan:
+# "flashing 5 nodes by USB in an equipment room is miserable — set this up early").
+# nvs holds node_id/wifi creds/threshold (provisioning.c) — no separate partition needed
+# at this scale.
+nvs,      data, nvs,     0x9000,  0x6000,
+otadata,  data, ota,     0xf000,  0x2000,
+ota_0,    app,  ota_0,   0x20000, 0x300000,
+ota_1,    app,  ota_1,   0x320000,0x300000,

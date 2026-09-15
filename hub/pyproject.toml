@@ -6,6 +6,7 @@ requires-python = ">=3.13"
 dependencies = [
     "paho-mqtt~=2.1",
     "httpx",
+    "aiohttp",
     "pydantic",
     "pydantic-settings",
     "tenacity",
@@ -29,3 +30,6 @@ packages = ["src/echo_sentry_hub"]
 
 [project.scripts]
 echo-sentry-hub = "echo_sentry_hub.__main__:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

@@ -1,11 +1,23 @@
 # Single source of truth for audio feature-extraction parameters.
 #
 # tools/gen_config.py reads this file and generates:
-#   - firmware/main/gen/frontend_config.h   (C, consumed by the TFLM microfrontend)
-#   - training/src/echo_sentry_train/frontend_config.py  (Python, consumed by training)
+#   - firmware/main/gen/frontend_config.h    (C, consumed by firmware/main/frontend_core.cc)
+#   - firmware/main/gen/frontend_tables.h    (C, LUTs — via tools/gen_frontend_tables.cc)
+#   - training/src/echo_sentry_train/frontend_config.py  (Python, model input-shape only)
 #
-# Never hand-edit either generated file, and never let the two sides diverge —
-# see Part 8 of the plan ("train/serve feature skew") for why this file exists.
+# Never hand-edit any generated file, and never let the sides diverge — see
+# comprehensive-plan.md §8 ("the golden-vector test") for why this file exists, and
+# firmware/main/frontend_core.cc's header comment for how bit-exactness is actually
+# achieved here: firmware and training's features.py both run the SAME compiled
+# frontend_core.cc (once cross-compiled for the ESP32-S3, once natively for macOS via
+# tools/build_native_frontend.sh) rather than two independent implementations that are
+# merely supposed to agree.
+#
+# Parameter names and defaults below follow tflite-micro's own reference frontend
+# (python/tflite_micro/signal/examples/micro_speech/audio_preprocessor.py's
+# FeatureParams, fetched from github.com/tensorflow/tflite-micro and read directly —
+# see tools/gen_frontend_tables.cc's header comment) rather than the deprecated
+# tensorflow.lite.experimental.microfrontend op this project's design started from.
 
 audio:
   sample_rate_hz: 16000
@@ -13,18 +25,73 @@ audio:
   channels: 1             # mono; INMP441 L/R pin tied to GND selects the left slot
 
 frontend:
-  # Parameters match the TFLM "microfrontend" (log-mel filterbank) defaults used by
-  # the esp-tflite-micro micro_speech example, adjusted for a longer analysis window
-  # suited to continuous equipment-room monitoring rather than keyword spotting.
-  window_size_ms: 30
-  window_stride_ms: 20
-  mel_channels: 40
+  # window_size_ms * sample_rate_hz / 1000 MUST be an exact power of 2 — firmware/
+  # main/frontend_core.cc skips the general zero-pad-to-next-pow2 case the TFLM
+  # kernel wrapper handles, and requires fft_length == window_sample_count exactly.
+  # 64ms @ 16kHz = 1024 samples = 2^10 — chosen for this reason as much as for
+  # matching the MIMII/DCASE n_fft=1024 baseline (comprehensive-plan.md §4.1).
+  window_size_ms: 64
+  window_stride_ms: 32
+  window_scaling_bits: 12   # Hann window fixed-point scale
+
+  mel_channels: 64
   lower_band_limit_hz: 50
-  upper_band_limit_hz: 8000
+  # Must stay strictly below the Nyquist frequency (sample_rate_hz / 2 = 8000) or
+  # filterbank design fails outright ("upper_band_limit too close to Nyquist") rather
+  # than silently clamping. 7500 Hz is also the reference frontend's own default at
+  # 16 kHz, chosen for the same reason.
+  upper_band_limit_hz: 7500
+
+  # ⚠️ CRITICAL — see comprehensive-plan.md §4.1. The frontend is not a plain log-mel
+  # extractor: it also runs spectral-subtraction noise reduction and PCAN auto-gain,
+  # both designed to normalize away *stationary* background so a wake word stands
+  # out. For machine condition monitoring the stationary background IS the signal —
+  # leaving either of these on would silently suppress exactly the degradation this
+  # system exists to detect, with no error and a model that trains fine and simply
+  # never fires. Both must stay false on both sides of the frontend.
+  enable_noise_reduction: false
+  enable_pcan: false
+
+  # --- mel filterbank design (tools/gen_frontend_tables.cc, design-time only —
+  # baked into firmware/main/gen/frontend_tables.h's constant arrays, not read at
+  # runtime) ---
+  filter_bank_scaling_bits: 12
+  filter_bank_alignment: 4
+  filter_bank_channel_block_size: 4
+
+  # --- mel filterbank runtime parameters (read directly by frontend_core.cc) ---
+  filter_bank_post_scaling_bits: 6       # FilterbankLog output_scale = 1 << this
+  filter_bank_spectral_subtraction_bits: 14
+  filter_bank_smoothing_bits: 10
+  filter_bank_even_smoothing: 0.025
+  filter_bank_odd_smoothing: 0.06
+  # Only takes effect when enable_noise_reduction is true — tools/gen_config.py
+  # derives the *effective* value written into frontend_config.h as exactly 1.0
+  # (mathematically proven to make the spectral-subtraction stage an identity
+  # function — see firmware/main/frontend_core.cc) whenever noise reduction is off,
+  # regardless of what's written here.
+  filter_bank_min_signal_remaining: 0.05
+  filter_bank_clamping: false
+
+  # --- PCAN gain LUT design (tools/gen_frontend_tables.cc, design-time only) ---
+  pcan_strength: 0.95
+  pcan_offset: 80.0
+  pcan_gain_bits: 21
+  pcan_smoothing_bits: 10
 
 model:
-  frames_per_inference: 49   # ~1s of context at the stride above
-  quantization: int8         # full-integer PTQ; see Part 5 of the plan
+  # Feature vector = frames_per_vector consecutive log-mel frames, concatenated.
+  # 5 frames x 64 mel channels = 320 dims, matching the MIMII/DCASE baseline input.
+  frames_per_vector: 5
+
+  # A scored "clip" spans clip_frames frontend frames (~2 s of audio at the stride
+  # above: 62 frames x 32 ms = 1984 ms). vector_stride subsamples which of the
+  # (clip_frames - frames_per_vector + 1) possible vectors are actually scored —
+  # stride 2 halves on-device inference count at negligible statistical cost.
+  clip_frames: 62
+  vector_stride: 2
+
+  quantization: int8         # full-integer PTQ; see comprehensive-plan.md §4.4
 
 node:
   # Per-node values (node_id, wifi creds, threshold) live in NVS on-device, not here —

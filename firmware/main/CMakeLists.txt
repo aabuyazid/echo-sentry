@@ -1,0 +1,26 @@
+# Sources are added incrementally as each module is written and built against the
+# real esp-tflite-micro headers (see idf_component.yml) — comprehensive-plan.md §2.3.
+idf_component_register(
+    SRCS "app_main.c"
+         "audio_capture.c"
+         "detector.c"
+         "evidence.c"
+         "frontend_core.cc"
+         "inference.cc"
+         "net.c"
+         "ota.c"
+         "provisioning.c"
+         "telemetry.c"
+    INCLUDE_DIRS "." "gen"
+    REQUIRES espressif__esp-tflite-micro
+             driver
+             esp_wifi
+             esp_netif
+             esp_event
+             mqtt
+             nvs_flash
+             esp_https_ota
+             esp_http_client
+             json
+    EMBED_FILES "models/model.tflite" "models/normalization.bin"
+)

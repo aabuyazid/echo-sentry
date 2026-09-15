@@ -20,6 +20,11 @@ firmware/sdkconfig.old
 # Generated (from config/frontend.yaml — see tools/gen_config.py)
 firmware/main/gen/
 training/src/echo_sentry_train/frontend_config.py
+tools/.gen_frontend_tables_bin
+
+# Native frontend library for training (tools/build_native_frontend.sh)
+training/src/echo_sentry_train/*.dylib
+training/src/echo_sentry_train/*.so
 
 # Trained artifacts
 training/models/*.h5

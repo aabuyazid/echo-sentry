@@ -1,0 +1,51 @@
+menu "Echo Sentry"
+
+    config ECHO_SENTRY_CAPTURE_MODE
+        bool "Enable raw-audio capture mode (data collection campaign)"
+        default n
+        help
+            When enabled, the node streams raw PCM to tools/capture_server.py over
+            TCP instead of running on-device inference — comprehensive-plan.md §3.1.
+            Shares audio_capture.c with production so the captured data comes from
+            the identical sensor path inference will later run on. Never enable this
+            in a production flash — it is a separate build, not a runtime toggle,
+            specifically so a capture build can never accidentally ship raw audio to
+            the hub.
+
+    config ECHO_SENTRY_CAPTURE_SERVER_HOST
+        string "Capture server host (capture mode only)"
+        default "10.42.0.1"
+        depends on ECHO_SENTRY_CAPTURE_MODE
+
+    config ECHO_SENTRY_CAPTURE_SERVER_PORT
+        int "Capture server port (capture mode only)"
+        default 9000
+        depends on ECHO_SENTRY_CAPTURE_MODE
+
+    config ECHO_SENTRY_I2S_BCK_GPIO
+        int "I2S BCLK GPIO"
+        default 5
+        help
+            INMP441 SCK pin. Defaults chosen to avoid strapping/PSRAM-octal pins on
+            the ESP32-S3-DevKitC-1-N8R8 — confirm against the specific board silkscreen
+            before wiring (comprehensive-plan.md Part 2e).
+
+    config ECHO_SENTRY_I2S_WS_GPIO
+        int "I2S WS (LRCLK) GPIO"
+        default 6
+        help
+            INMP441 WS pin.
+
+    config ECHO_SENTRY_I2S_DIN_GPIO
+        int "I2S DIN GPIO"
+        default 7
+        help
+            INMP441 SD (data out) pin.
+
+    config ECHO_SENTRY_EVIDENCE_RING_SECONDS
+        int "Evidence PCM ring buffer length (seconds)"
+        default 30
+        help
+            comprehensive-plan.md §3.4 / §2.3 memory budget — lives in PSRAM.
+
+endmenu

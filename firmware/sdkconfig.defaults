@@ -1,0 +1,25 @@
+# Echo Sentry firmware defaults — comprehensive-plan.md §2.3.
+CONFIG_IDF_TARGET="esp32s3"
+
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# ESP32-S3-DevKitC-1-N8R8: 8MB flash (quad SPI) + 8MB PSRAM (octal SPI) — the N8R8
+# variant is required for the evidence PCM ring buffer (comprehensive-plan.md §2.3's
+# memory budget table; the tensor arena stays in internal SRAM, not PSRAM, for speed).
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_USE_MALLOC=y
+
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=4096
+CONFIG_FREERTOS_HZ=1000
+
+# TFLM (esp-tflite-micro / esp-nn) pulls in C++ with RTTI/exceptions off by default in
+# recent IDF; TFLM doesn't need either.
+CONFIG_COMPILER_CXX_EXCEPTIONS=n
+CONFIG_COMPILER_CXX_RTTI=n
+
+# Native USB-Serial-JTAG port (comprehensive-plan.md Part 2c) — no external UART bridge.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
