@@ -1,0 +1,38 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# uv
+uv.lock.bak
+
+# ESP-IDF build artifacts
+firmware/build/
+firmware/managed_components/
+firmware/dependencies.lock
+firmware/sdkconfig
+firmware/sdkconfig.old
+
+# Generated (from config/frontend.yaml — see tools/gen_config.py)
+firmware/main/gen/
+training/src/echo_sentry_train/frontend_config.py
+
+# Trained artifacts
+training/models/*.h5
+training/models/*.tflite
+training/data/
+
+# Hub runtime state (never commit the system of record or secrets)
+hub/*.db
+hub/.env
+hub/deploy/*.local.env
+
+# macOS
+.DS_Store
+
+# Editor
+.clangd.cache/

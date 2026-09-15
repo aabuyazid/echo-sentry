@@ -1,0 +1,32 @@
+# Single source of truth for audio feature-extraction parameters.
+#
+# tools/gen_config.py reads this file and generates:
+#   - firmware/main/gen/frontend_config.h   (C, consumed by the TFLM microfrontend)
+#   - training/src/echo_sentry_train/frontend_config.py  (Python, consumed by training)
+#
+# Never hand-edit either generated file, and never let the two sides diverge —
+# see Part 8 of the plan ("train/serve feature skew") for why this file exists.
+
+audio:
+  sample_rate_hz: 16000
+  bit_depth: 32          # INMP441 delivers 24-bit samples left-justified in a 32-bit I2S slot
+  channels: 1             # mono; INMP441 L/R pin tied to GND selects the left slot
+
+frontend:
+  # Parameters match the TFLM "microfrontend" (log-mel filterbank) defaults used by
+  # the esp-tflite-micro micro_speech example, adjusted for a longer analysis window
+  # suited to continuous equipment-room monitoring rather than keyword spotting.
+  window_size_ms: 30
+  window_stride_ms: 20
+  mel_channels: 40
+  lower_band_limit_hz: 50
+  upper_band_limit_hz: 8000
+
+model:
+  frames_per_inference: 49   # ~1s of context at the stride above
+  quantization: int8         # full-integer PTQ; see Part 5 of the plan
+
+node:
+  # Per-node values (node_id, wifi creds, threshold) live in NVS on-device, not here —
+  # this file only covers signal-processing parameters shared by every node.
+  anomaly_threshold_default: 0.5   # overridable per node via NVS without reflashing

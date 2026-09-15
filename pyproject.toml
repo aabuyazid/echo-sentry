@@ -1,0 +1,21 @@
+[project]
+name = "echo-sentry"
+version = "0.1.0"
+description = "Acoustic edge anomaly detection — repo-level tooling config only"
+requires-python = ">=3.12"
+
+# NOT a uv workspace: training/ (py3.12, TensorFlow) and hub/ (py3.13, matches Pi OS Trixie)
+# have disjoint Python requirement ranges, and a uv workspace resolves one shared lockfile
+# across all members — that's incompatible with two members needing different interpreter
+# major.minors. Each is an independent uv project instead: its own pyproject.toml, its own
+# uv.lock, its own .venv. This file only holds repo-wide lint config.
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

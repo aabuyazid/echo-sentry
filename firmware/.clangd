@@ -1,0 +1,27 @@
+# clangd config for the ESP-IDF firmware project.
+#
+# Prerequisites:
+#   - `idf.py build` must have run at least once so build/compile_commands.json exists.
+#   - clangd itself: `brew install llvm` (already done) — it's keg-only and NOT symlinked
+#     into /opt/homebrew/bin, so Neovim's LSP client needs the full path:
+#       cmd = { "/opt/homebrew/opt/llvm/bin/clangd", ... }
+#     (nvim-lspconfig's default `clangd` command relies on PATH, which won't find it —
+#     point `cmd` at the absolute path above, or symlink it yourself.)
+#
+# Why this file is needed at all: clangd doesn't know the Xtensa cross-compiler's
+# builtin flags/macros, and compile_commands.json references a compiler
+# (xtensa-esp32s3-elf-gcc) that isn't clang. Without --query-driver, clangd either
+# errors on unrecognized flags or misses target-specific defines (FreeRTOS configs,
+# CONFIG_* Kconfig macros) and drowns the file in false positives.
+
+CompileFlags:
+  Add:
+    - -D__XTENSA__
+  Remove:
+    - -mlongcalls
+    - -mdisable-hardware-l32r
+    - -fno-tree-switch-conversion
+  CompilationDatabase: build
+
+Diagnostics:
+  UnusedIncludes: None   # ESP-IDF's Kconfig-driven headers trigger false positives here
