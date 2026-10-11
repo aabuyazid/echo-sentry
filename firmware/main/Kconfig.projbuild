@@ -12,15 +12,54 @@ menu "Echo Sentry"
             specifically so a capture build can never accidentally ship raw audio to
             the hub.
 
-    config ECHO_SENTRY_CAPTURE_SERVER_HOST
-        string "Capture server host (capture mode only)"
-        default "10.42.0.1"
+    choice ECHO_SENTRY_CAPTURE_TRANSPORT
+        prompt "Capture transport"
+        default ECHO_SENTRY_CAPTURE_TRANSPORT_SERIAL
         depends on ECHO_SENTRY_CAPTURE_MODE
+        help
+            SERIAL streams over the same native USB-Serial-JTAG port used for flashing
+            (tools/capture_serial.py on the host) — no Wi-Fi, no AP, usable for
+            hardware bring-up before a Pi hub exists. TCP is comprehensive-plan.md
+            §3.1's field-campaign transport, to tools/capture_server.py over the node
+            network. Both speak the identical handshake/segment/PCM wire protocol;
+            SERIAL additionally frames it (see firmware/main/capture_stream.c) because
+            the pipe is shared with the log console.
+
+        config ECHO_SENTRY_CAPTURE_TRANSPORT_SERIAL
+            bool "USB serial (bring-up / bench)"
+
+        config ECHO_SENTRY_CAPTURE_TRANSPORT_TCP
+            bool "Wi-Fi TCP to capture_server.py (field campaign)"
+    endchoice
+
+    config ECHO_SENTRY_CAPTURE_SERVER_HOST
+        string "Capture server host"
+        default "10.42.0.1"
+        depends on ECHO_SENTRY_CAPTURE_TRANSPORT_TCP
 
     config ECHO_SENTRY_CAPTURE_SERVER_PORT
-        int "Capture server port (capture mode only)"
+        int "Capture server port"
         default 9000
+        depends on ECHO_SENTRY_CAPTURE_TRANSPORT_TCP
+
+    config ECHO_SENTRY_CAPTURE_SEGMENT_SECONDS
+        int "Capture segment length (seconds)"
+        default 60
         depends on ECHO_SENTRY_CAPTURE_MODE
+        help
+            comprehensive-plan.md §3.1: "each 60-second segment is closed and reopened
+            so a dropout costs one minute, not the session." Set lower (e.g. 10) for
+            faster bench iteration during bring-up.
+
+    config ECHO_SENTRY_CAPTURE_NODE_ID
+        string "Capture node_id fallback (bench only)"
+        default "bench"
+        depends on ECHO_SENTRY_CAPTURE_MODE
+        help
+            Used for the handshake's node_id when NVS has never been provisioned
+            (provisioning_get() returns a blank node_id — see firmware/flash.sh, which
+            this capture build deliberately never runs). The host uses this to name
+            the output directory.
 
     config ECHO_SENTRY_I2S_BCK_GPIO
         int "I2S BCLK GPIO"

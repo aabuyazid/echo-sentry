@@ -12,6 +12,7 @@ uv.lock.bak
 
 # ESP-IDF build artifacts
 firmware/build/
+firmware/build-capture/
 firmware/managed_components/
 firmware/dependencies.lock
 firmware/sdkconfig
@@ -30,6 +31,9 @@ training/src/echo_sentry_train/*.so
 training/models/*.h5
 training/models/*.tflite
 training/data/
+
+# Captured audio (tools/capture_serial.py, tools/capture_server.py output)
+captures/
 
 # Hub runtime state (never commit the system of record or secrets)
 hub/*.db

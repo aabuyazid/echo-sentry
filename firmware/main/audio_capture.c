@@ -105,3 +105,5 @@ void audio_capture_read_at(uint32_t start, int16_t *out, size_t num_samples) {
 }
 
 uint32_t audio_capture_drop_count(void) { return s_drop_count; }
+
+uint32_t audio_capture_ring_capacity(void) { return RING_SAMPLES; }

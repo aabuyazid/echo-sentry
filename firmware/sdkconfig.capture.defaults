@@ -1,0 +1,13 @@
+# Capture-mode overlay on top of sdkconfig.defaults — bring-up plan
+# (~/.claude/plans/create-a-plan-to-serialized-prism.md). Build with:
+#
+#   idf.py -B build-capture \
+#     -D SDKCONFIG=<abs>/build-capture/sdkconfig \
+#     -D SDKCONFIG_DEFAULTS="<abs>/sdkconfig.defaults;<abs>/sdkconfig.capture.defaults" \
+#     set-target esp32s3
+#   idf.py -B build-capture build flash monitor
+#
+# Kept as a SEPARATE build dir/sdkconfig (not `idf.py menuconfig` on the main tree) so
+# the production sdkconfig is never mutated and the two images can't be confused.
+CONFIG_ECHO_SENTRY_CAPTURE_MODE=y
+CONFIG_ECHO_SENTRY_CAPTURE_TRANSPORT_SERIAL=y

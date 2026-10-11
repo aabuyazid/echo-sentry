@@ -3,6 +3,7 @@
 idf_component_register(
     SRCS "app_main.c"
          "audio_capture.c"
+         "capture_stream.c"
          "detector.c"
          "evidence.c"
          "frontend_core.cc"
@@ -22,5 +23,7 @@ idf_component_register(
              esp_https_ota
              esp_http_client
              json
+             esp_driver_usb_serial_jtag
+             esp_app_format
     EMBED_FILES "models/model.tflite" "models/normalization.bin"
 )

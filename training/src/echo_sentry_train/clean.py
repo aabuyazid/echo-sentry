@@ -58,8 +58,15 @@ def read_pcm_float(wav_path: Path) -> np.ndarray:
 
 def check_integrity(sidecar: dict) -> str | None:
     """Step 1 — non-zero I2S drop delta means the segment contains at least one buffer
-    overrun; a genuine acoustic discontinuity can't be distinguished from a glitch."""
+    overrun; a genuine acoustic discontinuity can't be distinguished from a glitch.
+    transport_drops_delta is the same ambiguity one layer up the chain: a lost or
+    ring-overrun PCM chunk on the way off the device (tools/capture_serial.py or
+    tools/capture_server.py zero-fills the gap so the WAV stays sample-accurate, but a
+    block of zeros spliced into otherwise-real audio is exactly the kind of
+    discontinuity this step exists to reject) — see capture_sink.write_segment()."""
     if sidecar.get("i2s_drops_delta", 0) > 0:
+        return "integrity"
+    if sidecar.get("transport_drops_delta", 0) > 0:
         return "integrity"
     return None
 

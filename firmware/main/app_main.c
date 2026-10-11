@@ -1,11 +1,12 @@
 // Init order + task wiring — comprehensive-plan.md §2.3.
 //
-// This is the production (inference) build. CONFIG_ECHO_SENTRY_CAPTURE_MODE (see
-// Kconfig.projbuild) is a compile-time alternative, not implemented in this file yet
-// — it shares audio_capture.c but streams raw PCM to tools/capture_server.py instead
-// of running inference; see comprehensive-plan.md §3.1. Wiring it in is a small,
-// mechanical follow-up once a real data-collection campaign is scheduled (M4), kept
-// separate here so this file's control flow stays readable.
+// CONFIG_ECHO_SENTRY_CAPTURE_MODE (see Kconfig.projbuild) is a separate build, not a
+// runtime toggle — app_main() branches at compile time below. The capture branch
+// brings up no network at all (no telemetry_init(), no inference_init(), no
+// net_start()), which is what makes Kconfig.projbuild's promise — "a capture build
+// can never accidentally ship raw audio to the hub" — structurally true rather than a
+// convention. See capture_stream.c for the device side and
+// tools/capture_serial.py for the host side (comprehensive-plan.md §3.1).
 
 #include <math.h>
 #include <string.h>
@@ -15,6 +16,7 @@
 #include "freertos/task.h"
 
 #include "audio_capture.h"
+#include "capture_stream.h"
 #include "detector.h"
 #include "evidence.h"
 #include "frontend_core.h"
@@ -96,6 +98,13 @@ void app_main(void) {
     ESP_LOGI(TAG, "Echo Sentry node starting");
 
     ESP_ERROR_CHECK(provisioning_init());
+
+#if CONFIG_ECHO_SENTRY_CAPTURE_MODE
+    ESP_ERROR_CHECK(audio_capture_start());
+    ESP_ERROR_CHECK(capture_stream_start());
+    return;
+#endif
+
     ESP_ERROR_CHECK(telemetry_init());
     ESP_ERROR_CHECK(audio_capture_start());
 
