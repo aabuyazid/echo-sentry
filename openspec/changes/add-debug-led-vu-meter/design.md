@@ -288,7 +288,7 @@ reads usefully; this is setup, not a defect.
 
 **Wrong board revision presents exactly like a software bug** → A wrong pin shows up as
 "the LED never lights", indistinguishable from a broken driver or a dead task. Mitigated
-by making the pin a Kconfig value with the v1.1 default documented, and by confirming
+by making the pin a Kconfig value with the v1.0 default documented, and by confirming
 the revision against the board silkscreen before debugging anything else.
 
 **A production node carries a permanently lit indicator, the new dependency, and an RMT
@@ -296,6 +296,19 @@ channel** → Accepted deliberately. The counter-argument is that this project's
 established pattern makes capture-versus-production differences structural rather than
 conventional. Reversing it later is a `default y if ECHO_SENTRY_CAPTURE_MODE` in Kconfig
 and one `#if` — two lines, no redesign.
+
+**In a capture build the indicator freezes for ~2 s at the first segment boundary** →
+Measured on hardware 2026-10-16: the priority-4 `capture_stream` task holds core 0 for
+1.84 s while it pushes its first PCM segment over USB, and the priority-1 indicator
+task, pinned to the same core, is preempted for that whole window and holds its last
+color. Observed exactly once per boot — it did not recur over the following 900 blocks.
+Accepted, because the alternative is raising the indicator above the transport and the
+whole point of priority 1 on core 0 is that a diagnostic LED must not be able to perturb
+capture. It does not produce a false stall: preemption makes the available-sample count
+larger, not smaller, so the starvation timer stays at zero. The consequence is narrow
+but worth knowing before debugging it twice — the "tracks level smoothly with no visible
+flicker" expectation in task 5.2 holds for a production build and not for the first two
+seconds of a capture build's first segment.
 
 **First build after this change requires network** → `espressif/led_strip` is pulled
 from the Espressif component registry and recorded in `dependencies.lock`. Offline
