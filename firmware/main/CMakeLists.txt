@@ -4,6 +4,7 @@ idf_component_register(
     SRCS "app_main.c"
          "audio_capture.c"
          "capture_stream.c"
+         "debug_led.c"
          "detector.c"
          "evidence.c"
          "frontend_core.cc"
@@ -14,6 +15,7 @@ idf_component_register(
          "telemetry.c"
     INCLUDE_DIRS "." "gen"
     REQUIRES espressif__esp-tflite-micro
+             espressif__led_strip
              driver
              esp_wifi
              esp_netif

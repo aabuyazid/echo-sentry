@@ -17,6 +17,7 @@
 
 #include "audio_capture.h"
 #include "capture_stream.h"
+#include "debug_led.h"
 #include "detector.h"
 #include "evidence.h"
 #include "frontend_core.h"
@@ -96,6 +97,14 @@ static void score_loop_task(void *arg) {
 
 void app_main(void) {
     ESP_LOGI(TAG, "Echo Sentry node starting");
+
+    // Above the capture-mode branch so both builds get the indicator with no
+    // preprocessor duplication, and first so bring-up has a local signal before
+    // anything that can fail. Not fatal on failure: a debug indicator must not be able
+    // to stop a node from booting.
+    if (debug_led_start() != ESP_OK) {
+        ESP_LOGE(TAG, "debug_led_start failed");
+    }
 
     ESP_ERROR_CHECK(provisioning_init());
 

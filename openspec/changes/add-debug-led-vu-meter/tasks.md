@@ -1,0 +1,42 @@
+# Tasks
+
+## 1. Dependency and build scaffolding
+
+- [x] 1.1 Add `espressif/led_strip: "^3.1"` to `firmware/main/idf_component.yml` and verify `idf.py reconfigure` populates `firmware/managed_components/espressif__led_strip/` and records the resolved version in `firmware/dependencies.lock` — the component's own `idf: ">=5.2"` constraint is already confirmed compatible with this project's 5.5.5, so a resolution failure here means a registry or network problem, not a version conflict
+- [x] 1.2 Add four Kconfig values to `firmware/main/Kconfig.projbuild` — indicator GPIO (default 38, with the v1.0/v1.1 difference stated in the help text), level floor dBFS (default −95), level ceiling dBFS (default −10), and maximum intensity (default 64) — and verify each appears under the "Echo Sentry" menu in `idf.py menuconfig` and is written to `sdkconfig`
+- [x] 1.3 Create `firmware/main/debug_led.h` declaring `debug_led_start()` and a stub `debug_led.c`, register the source in `firmware/main/CMakeLists.txt` SRCS, add `espressif__led_strip` to its REQUIRES, and verify `idf.py build` succeeds for both the default build and the `build-capture` configuration
+
+## 2. Level mapping and its self-check
+
+- [x] 2.1 Implement `level_to_hsv(float dbfs, float env)` in `debug_led.c` as a pure function with no hardware or state dependencies, returning hue in degrees, saturation and value for `led_strip_set_pixel_hsv()`: the five-entry dBFS-to-hue zone table (blue 240, green 120, yellow 60, red 0), the floor/ceiling normalization, the gamma-2.2 value curve, and the `MIN_ON` clamp — verify by inspection that it reads no globals and calls no ESP-IDF API
+- [x] 2.2 Implement `debug_led_selftest()` asserting monotonic value across the window, both endpoints clamped, no-signal mapping to value zero, the expected hue per zone boundary, and a level just above the floor mapping to a non-zero value; verify it passes at boot by its log line, and verify it genuinely bites by temporarily removing the `MIN_ON` clamp and confirming the just-above-floor assertion fires
+- [x] 2.3 Implement the asymmetric one-pole smoother (rising alpha 0.66, falling alpha 0.22 at a 32 ms block rate) and verify by feeding a step from floor to ceiling through it in the selftest that it reaches 90% within roughly 300 ms of simulated blocks when falling
+
+## 3. Ring consumer task
+
+- [ ] 3.1 Implement the task skeleton — priority 1, core 0, 3072-byte stack, static 512-sample buffer — that waits for `audio_capture_write_count()` to become non-zero before any read, and verify from the boot log that it waits rather than reading an unallocated ring
+- [ ] 3.2 Implement the availability check (`write_count() - cursor >= BLOCK_SAMPLES` before every `audio_capture_read_at()`, 10 ms sleep otherwise) and verify by instrumenting that `audio_capture_read_at()` never blocks, which is what keeps the stall state reachable
+- [ ] 3.3 Implement per-block RMS in dBFS and peak magnitude over the 512-sample block, and verify the computed dBFS agrees within a decibel with the `rms_dbfs` the score loop publishes for the same steady input
+- [ ] 3.4 Implement the torn-read guard — resync `cursor` to `write_count() - BLOCK_SAMPLES` when the lag exceeds half of `audio_capture_ring_capacity()` — and verify by artificially stalling the task past the threshold that it resyncs and logs rather than rendering a torn read
+- [ ] 3.5 Add the single `debug_led_start()` call at the top of `app_main()` above the `#if CONFIG_ECHO_SENTRY_CAPTURE_MODE` branch, and verify the indicator runs in both a production flash and a capture flash
+
+## 4. Fault state machine
+
+- [ ] 4.1 Implement stall detection on the starvation timer with the timer unarmed until the first sample arrives, and verify no stall indication appears during the boot window before `audio_capture_start()` fills the ring
+- [ ] 4.2 Implement the drop indication from an increase in `audio_capture_drop_count()` between blocks, and verify it is visually distinguishable from the stall indication by blink rate
+- [ ] 4.3 Implement clip detection against `CLIP_LIMIT` with a `CLIP_HOLD_MS` hold, and verify a brief clipping event remains visible long enough to catch on a glance
+- [ ] 4.4 Implement the precedence order from design.md (pre-first-sample, stall, drops, clip, level) and verify each state is reachable and that a fault always overrides a level indication
+
+## 5. Indicator output
+
+- [ ] 5.1 Initialize the strip via `led_strip_new_rmt_device()` for a single pixel on the Kconfig-selected GPIO, with `led_model = LED_MODEL_WS2812`, `color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB` (no usable zero value — omitting it leaves every channel position at 0, so all three read the same byte), `timings` left uninitialized, and RMT defaults; verify a forced solid color lights the onboard LED in the expected hue, which confirms the GRB component order is right
+- [ ] 5.2 Wire the state machine's chosen HSV triple to `led_strip_set_pixel_hsv()` plus `led_strip_refresh()` once per block, and verify by speaking and clapping near the microphone that the indicator tracks level smoothly at roughly 31 Hz with no visible flicker on steady input
+- [x] 5.3 Write the `debug_led.c` module header comment in the style of the sibling modules — what the indicator shows, the state table, why the availability check precedes every read, and why `MIN_ON` exists — and verify it states the calibration procedure a reader would otherwise have to rediscover
+
+## 6. Hardware calibration and spec verification
+
+- [ ] 6.1 Confirm the board revision against the silkscreen and set the indicator GPIO accordingly (38 for v1.1, 48 for v1.0), verifying the LED lights before any further debugging
+- [ ] 6.2 Measure the actual ambient level in the target equipment room and narrow the floor and ceiling Kconfig values if needed, verifying that normal ambient renders as a clearly intermediate intensity and that a live microphone in the quietest available room still renders visibly lit
+- [ ] 6.3 Verify the non-interference requirement by comparing the published `rms_dbfs` in a quiet room with the pixel forced dark against forced to maximum intensity, confirming the two agree within measurement variation; if the noise floor moves, lower the maximum intensity and re-measure
+- [ ] 6.4 Run the node for an extended period with the indicator active and verify `audio_capture_drop_count()` stays at zero, preserving milestone M1's "zero I2S drops over 1 h" criterion
+- [ ] 6.5 Inject each fault and verify its indication: disconnect the microphone's data line for the dark state, hold the I2S clock for the stall state, and drive a loud source into clipping for the clip state

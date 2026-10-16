@@ -87,4 +87,43 @@ menu "Echo Sentry"
         help
             comprehensive-plan.md §3.4 / §2.3 memory budget — lives in PSRAM.
 
+    config ECHO_SENTRY_DEBUG_LED_GPIO
+        int "Debug indicator LED GPIO"
+        default 38
+        help
+            The onboard addressable WS2812 driven by firmware/main/debug_led.c. GPIO38
+            on an ESP32-S3-DevKitC-1 v1.1, GPIO48 on v1.0 — confirm against the board
+            silkscreen first, because a wrong pin here looks exactly like a broken
+            driver or a dead task: the LED simply never lights.
+
+    config ECHO_SENTRY_DEBUG_LED_FLOOR_DBFS
+        int "Debug indicator level floor (dBFS)"
+        default -95
+        range -120 0
+        help
+            Level mapped to the indicator's minimum-on intensity. The default sits
+            below the INMP441's own -87 dBFS noise floor (datasheet: -26 dBFS @ 94 dB
+            SPL, 61 dB SNR) so that "alive but quiet" stays distinguishable from
+            "dead microphone", which renders fully dark. Narrow this after measuring
+            the actual ambient level in the target room.
+
+    config ECHO_SENTRY_DEBUG_LED_CEIL_DBFS
+        int "Debug indicator level ceiling (dBFS)"
+        default -10
+        range -120 0
+        help
+            Level mapped to the maximum intensity. Close enough to full scale that the
+            top (red) zone genuinely means near-clipping. Must be greater than the
+            floor.
+
+    config ECHO_SENTRY_DEBUG_LED_MAX_INTENSITY
+        int "Debug indicator maximum intensity (0-255)"
+        default 64
+        range 8 255
+        help
+            Caps the WS2812's draw to single-digit mA while keeping the pixel readable
+            in a dark room. The LED shares the 3V3 rail with the microphone, so lower
+            this if the measured noise floor moves between the pixel held dark and
+            held at maximum (see design.md's non-interference check).
+
 endmenu
