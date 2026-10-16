@@ -17,6 +17,30 @@ Full environment setup, architecture rationale, and verification steps: see
 | `hub/` | Python 3.13 | Raspberry Pi systemd service |
 | `config/frontend.yaml` | — | single source of truth for audio feature params (see `tools/gen_config.py`) |
 
+## Wiring
+
+INMP441 breakout to an ESP32-S3-DevKitC-1. Pins are the `firmware/main/Kconfig.projbuild`
+defaults; change them there, not in `audio_capture.c`.
+
+| Mic pin | Board pin | Kconfig |
+|---|---|---|
+| VDD | **3V3** | — (1.8–3.3 V part; 5 V destroys it) |
+| GND | GND | — |
+| SCK | GPIO5 | `ECHO_SENTRY_I2S_BCK_GPIO` |
+| WS | GPIO6 | `ECHO_SENTRY_I2S_WS_GPIO` |
+| SD | GPIO7 | `ECHO_SENTRY_I2S_DIN_GPIO` |
+| L/R | **GND** | — (required: `audio_capture.c` reads the left slot only) |
+
+GPIO 5/6/7 avoid the S3's strapping pins (0, 3, 45, 46) and its octal-PSRAM pins (33–37).
+The debug indicator needs no wiring — it is the onboard WS2812, GPIO48 on a DevKitC-1 v1.0
+(the default) and GPIO38 on a v1.1 (`ECHO_SENTRY_DEBUG_LED_GPIO`); check the silkscreen,
+because a wrong pin there is indistinguishable from a dead task. The separate red LED is a
+hardwired power indicator with no GPIO behind it.
+
+Bring-up order that isolates faults fastest: power and L/R first, confirm the LED lights,
+then add SCK/WS/SD. A mic with data connected but L/R left floating reads as a dead-quiet
+room — the one failure the indicator cannot tell apart from a genuinely quiet one.
+
 ## Quickstart
 
 ```bash
@@ -31,4 +55,8 @@ idf.py set-target esp32s3
 idf.py build
 ```
 
-Status: environment scaffolding only — no application code yet.
+Status: all three toolchains build, and the node firmware flashes and boots on an
+ESP32-S3 with the TFLM interpreter live. Not yet exercised on hardware: provisioning
+(`firmware/flash.sh`), the Wi-Fi/MQTT path to the hub, and the 14-day data-collection
+campaign. The embedded `model.tflite` is a placeholder trained on synthetic audio, to be
+replaced per node once that campaign runs — see `firmware/main/models/README.md`.

@@ -89,12 +89,13 @@ menu "Echo Sentry"
 
     config ECHO_SENTRY_DEBUG_LED_GPIO
         int "Debug indicator LED GPIO"
-        default 38
+        default 48
         help
-            The onboard addressable WS2812 driven by firmware/main/debug_led.c. GPIO38
-            on an ESP32-S3-DevKitC-1 v1.1, GPIO48 on v1.0 — confirm against the board
-            silkscreen first, because a wrong pin here looks exactly like a broken
-            driver or a dead task: the LED simply never lights.
+            The onboard addressable WS2812 driven by firmware/main/debug_led.c. GPIO48
+            on an ESP32-S3-DevKitC-1 v1.0 (the default, verified lit on this project's
+            board), GPIO38 on v1.1 — confirm against the board silkscreen first,
+            because a wrong pin here looks exactly like a broken driver or a dead task:
+            the LED simply never lights.
 
     config ECHO_SENTRY_DEBUG_LED_FLOOR_DBFS
         int "Debug indicator level floor (dBFS)"
